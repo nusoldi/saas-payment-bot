@@ -1,0 +1,8 @@
+{
+  "name": "saas-payment-bot-tools",
+  "private": true,
+  "description": "Pinned TypeScript runner for .github/workflows/pay-invoices.yml",
+  "dependencies": {
+    "tsx": "4.23.15"
+  }
+}
