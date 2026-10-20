@@ -50,7 +50,9 @@ jobs:
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
 
       - name: Run bot
-        run: tools/node_modules/.bin/tsx bot.ts
+        # bot.ts sends with the RPC's default preflight commitment (finalized),
+        # which can't see tokens it bought seconds earlier; a second run pays.
+        run: tools/node_modules/.bin/tsx bot.ts || { sleep 60; tools/node_modules/.bin/tsx bot.ts; }
         env:
           RPC_URL: ${{ secrets.RPC_URL }}
           VOTE_KEY: ${{ secrets.VOTE_KEY }}
