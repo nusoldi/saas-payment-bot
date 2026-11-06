@@ -50,9 +50,23 @@ jobs:
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
 
       - name: Run bot
-        # bot.ts sends with the RPC's default preflight commitment (finalized),
-        # which can't see tokens it bought seconds earlier; a second run pays.
-        run: tools/node_modules/.bin/tsx bot.ts || { sleep 60; tools/node_modules/.bin/tsx bot.ts; }
+        # A run can fail right after it buys tokens; a second run a minute later pays.
+        # bot.ts exits 0 even when it leaves invoices unpaid, so its log decides
+        # whether the run fails (and GitHub sends an email).
+        run: |
+          set -o pipefail
+          run_bot() { tools/node_modules/.bin/tsx bot.ts 2>&1 | tee bot.log; }
+          run_bot || { sleep 60; run_bot; }
+          unpaid=0
+          if grep -q '^SECURITY: refusing to pay' bot.log; then
+            echo "::error::An invoicer that is not on the trusted list is billing your validator. Check with The Vault before trusting it."
+            unpaid=1
+          fi
+          if grep -qE '^(Still short|Nothing payable)' bot.log; then
+            echo "::error::The bot left invoices unpaid. The 'Still short' line above lists them."
+            unpaid=1
+          fi
+          exit "$unpaid"
         env:
           RPC_URL: ${{ secrets.RPC_URL }}
           VOTE_KEY: ${{ secrets.VOTE_KEY }}
